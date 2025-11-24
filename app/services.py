@@ -36,7 +36,7 @@ class InstitutionService:
         pt = Point(lon, lat, srid=4326)
         nearby = (
             Institution.objects.annotate(distance=Distance('location', pt))
-            .filter(distance__lte=radius_km * 1000)
+            .filter(distance__lte=radius_km)
             .order_by('distance')
         )
         return nearby
