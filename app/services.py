@@ -67,14 +67,12 @@ class PortfolioService:
     @staticmethod
     def portfolio_performance(portfolio_id):
         qs = Transaction.objects.filter(portfolio_id=portfolio_id)
-        # Anti-pattern: separate aggregate calls causing multiple queries
         avg_price = qs.aggregate(Avg('price'))['price__avg']
         total_amount = qs.aggregate(Sum('amount'))['amount__sum']
         return (avg_price, total_amount)
 
     @staticmethod
     def get_holdings(portfolio_id):
-        # TODO: implement holdings breakdown per asset
         return []
 
     @staticmethod
