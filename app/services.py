@@ -2,8 +2,8 @@ from django.contrib.auth import get_user_model
 from django.contrib.gis.db.models.functions import Distance
 from django.contrib.gis.geos import Point
 from django.core.cache import cache
-from django.db import connection, transaction
-from django.db.models import F, Sum
+from django.db import transaction
+from django.db.models import Avg, F, Sum
 
 from app.models import Asset, Institution, Portfolio, Transaction, User
 
@@ -65,19 +65,10 @@ class PortfolioService:
 
     @staticmethod
     def portfolio_performance(portfolio_id):
-        with connection.cursor() as cursor:
-            cursor.execute(
-                """
-            WITH txs AS (
-              SELECT date, price, amount
-              FROM app_transaction
-              WHERE portfolio_id = %s
-            )
-            SELECT AVG(price) AS avg_price, SUM(amount) AS total_amount FROM txs;
-            """,
-                [portfolio_id],
-            )
-            return cursor.fetchone()
+        qs = Transaction.objects.filter(portfolio_id=portfolio_id)
+        avg_price = qs.aggregate(Avg('price'))['price__avg']
+        total_amount = qs.aggregate(Sum('amount'))['amount__sum']
+        return (avg_price, total_amount)
 
     @staticmethod
     def get_summary_with_cache(portfolio_id):
