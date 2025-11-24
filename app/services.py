@@ -1,5 +1,9 @@
 from django.contrib.auth import get_user_model
+from django.contrib.gis.db.models.functions import Distance
 from django.contrib.gis.geos import Point
+from django.core.cache import cache
+from django.db import connection, transaction
+from django.db.models import F, Sum
 
 from app.models import Asset, Institution, Portfolio, Transaction, User
 
@@ -19,11 +23,23 @@ class UserService:
 class InstitutionService:
     @staticmethod
     def create_institution(name, type, location: Point):
+        if location.srid is None:
+            location.srid = 4326
         return Institution.objects.create(name=name, type=type, location=location)
 
     @staticmethod
     def get(pk):
         return Institution.objects.get(pk=pk)
+
+    @staticmethod
+    def get_nearby(lat, lon, radius_km=10):
+        pt = Point(lon, lat, srid=4326)
+        nearby = (
+            Institution.objects.annotate(distance=Distance('location', pt))
+            .filter(distance__lte=radius_km * 1000)
+            .order_by('distance')
+        )
+        return nearby
 
 
 class PortfolioService:
@@ -38,6 +54,41 @@ class PortfolioService:
     @staticmethod
     def delete(pk):
         Portfolio.objects.filter(pk=pk).delete()
+
+    @staticmethod
+    def update_positions_atomic(pk, new_name):
+        with transaction.atomic():
+            p = Portfolio.objects.select_for_update().get(pk=pk)
+            p.name = new_name
+            p.save()
+            return p
+
+    @staticmethod
+    def portfolio_performance(portfolio_id):
+        with connection.cursor() as cursor:
+            cursor.execute(
+                """
+            WITH txs AS (
+              SELECT date, price, amount
+              FROM app_transaction
+              WHERE portfolio_id = %s
+            )
+            SELECT AVG(price) AS avg_price, SUM(amount) AS total_amount FROM txs;
+            """,
+                [portfolio_id],
+            )
+            return cursor.fetchone()
+
+    @staticmethod
+    def get_summary_with_cache(portfolio_id):
+        cache_key = f'portfolio_summary_{portfolio_id}'
+        data = cache.get(cache_key)
+        if data:
+            return data
+        qs = Transaction.objects.filter(portfolio_id=portfolio_id)
+        total = qs.aggregate(total_amount=Sum('amount'), avg_price=Sum(F('price') * F('amount')) / Sum('amount'))
+        cache.set(cache_key, total, timeout=120)
+        return total
 
 
 class AssetService:
@@ -62,6 +113,29 @@ class TransactionService:
             date=date,
             details=details,
         )
+
+    @staticmethod
+    def create_transaction_multi_step(
+        portfolio: Portfolio, asset: Asset, trans_type: str, amount, price, date, details=None
+    ):
+        sid = transaction.savepoint()
+        try:
+            tx = Transaction.objects.create(
+                portfolio=portfolio,
+                asset=asset,
+                trans_type=trans_type,
+                amount=amount,
+                price=price,
+                date=date,
+                details=details,
+            )
+            if float(amount) < 0:
+                raise ValueError('Invalid negative amount')
+            transaction.savepoint_commit(sid)
+            return tx
+        except Exception:
+            transaction.savepoint_rollback(sid)
+            raise
 
     @staticmethod
     def get(pk):

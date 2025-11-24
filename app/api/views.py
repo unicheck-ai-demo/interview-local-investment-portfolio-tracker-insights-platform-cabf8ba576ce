@@ -1,9 +1,12 @@
 from django.db import DatabaseError, connection
 from rest_framework import status, viewsets
+from rest_framework.decorators import action
+from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from app.models import Asset, Institution, Portfolio, Transaction, User
+from app.services import InstitutionService, PortfolioService, TransactionService
 
 from .serializers import (
     AssetSerializer,
@@ -33,18 +36,62 @@ class UserViewSet(viewsets.ModelViewSet):
 class InstitutionViewSet(viewsets.ModelViewSet):
     queryset = Institution.objects.all()
     serializer_class = InstitutionSerializer
+    permission_classes = [IsAuthenticated]
+
+    @action(detail=False, methods=['get'], url_path='nearest')
+    def nearest(self, request):
+        lat = float(request.query_params.get('lat', 0))
+        lon = float(request.query_params.get('lon', 0))
+        radius = float(request.query_params.get('radius', 10))
+        insts = InstitutionService.get_nearby(lat, lon, radius_km=radius)
+        serializer = self.get_serializer(insts, many=True)
+        return Response(serializer.data)
 
 
 class PortfolioViewSet(viewsets.ModelViewSet):
     queryset = Portfolio.objects.select_related('user').all()
     serializer_class = PortfolioSerializer
+    permission_classes = [IsAuthenticated]
+
+    @action(detail=True, methods=['get'], url_path='performance')
+    def performance(self, request, pk=None):
+        result = PortfolioService.portfolio_performance(pk)
+        return Response({'avg_price': result[0], 'total_amount': result[1]})
+
+    @action(detail=True, methods=['get'], url_path='summary')
+    def summary(self, request, pk=None):
+        data = PortfolioService.get_summary_with_cache(pk)
+        return Response(data)
+
+    @action(detail=True, methods=['post'], url_path='update-name')
+    def update_name(self, request, pk=None):
+        new_name = request.data.get('name')
+        obj = PortfolioService.update_positions_atomic(pk, new_name)
+        serializer = self.get_serializer(obj)
+        return Response(serializer.data)
 
 
 class AssetViewSet(viewsets.ModelViewSet):
     queryset = Asset.objects.select_related('institution').all()
     serializer_class = AssetSerializer
+    permission_classes = [IsAuthenticated]
 
 
 class TransactionViewSet(viewsets.ModelViewSet):
     queryset = Transaction.objects.select_related('portfolio', 'asset').all()
     serializer_class = TransactionSerializer
+    permission_classes = [IsAuthenticated]
+
+    @action(detail=False, methods=['post'], url_path='multi-step')
+    def multi_step(self, request):
+        # Simulated multi-step transaction handling
+        data = request.data
+        portfolio_id = data['portfolio']
+        asset_id = data['asset']
+        portfolio = Portfolio.objects.get(pk=portfolio_id)
+        asset = Asset.objects.get(pk=asset_id)
+        tx = TransactionService.create_transaction_multi_step(
+            portfolio, asset, data['trans_type'], data['amount'], data['price'], data['date'], data.get('details')
+        )
+        serializer = self.get_serializer(tx)
+        return Response(serializer.data, status=status.HTTP_201_CREATED)
