@@ -42,16 +42,64 @@ Good luck and enjoy!
 
 ## About Project
 
+A Django-based backend service for managing personal investment portfolios with a focus on local financial instruments and geographical insights. The platform allows users to register accounts, track their financial holdings, visualize geospatial distribution of branches or investment sources using PostGIS, and generate performance analytics and risk assessments. This system serves both individual investors and small financial advisory firms, providing a centralized, API-driven backend for mobile or web clients to consume. It operates as close as possible to production reality, with proper data modeling, relationships, transaction management, and caching for high‑read endpoints.
+
+[see more details](docs/)
+
 ### Tech Stack
 
 - Python: 3.11
 - Django: 4
-- Celery: 5
 - API: Django REST Framework
 - Database: PostgreSQL 15
 - Caching: Redis 7
 - Testing: Pytest, Pytest-Django
 - Dependency Management: `requirements.txt`
+
+
+### Project Structure Overview
+```bash
+> tree -a --gitignore /app 
+.
+├── .env.example
+├── Dockerfile
+├── Makefile
+├── README.md
+├── app
+│   ├── api
+│   │   ├── serializers.py
+│   │   ├── urls.py
+│   │   └── views.py
+│   ├── apps.py
+│   ├── migrations
+│   │   └── 0001_initial.py
+│   ├── models.py
+│   ├── services.py
+│   └── tasks.py
+├── config
+│   ├── asgi.py
+│   ├── celery.py
+│   ├── settings.py
+│   ├── urls.py
+│   └── wsgi.py
+├── docker-compose.yml
+├── docs
+│   └── README.md
+├── manage.py
+├── pyproject.toml
+├── requirements.txt
+└── tests
+    ├── api
+    │   ├── test_api_endpoints.py
+    │   ├── test_auth.py
+    │   └── test_heapth.py
+    ├── conftest.py
+    ├── test_models.py
+    └── test_services.py
+
+8 directories, 28 files
+
+```
 
 ---
 Contact: [info@unicheck.ai](mailto:info@unicheck.ai)

@@ -1,13 +1,14 @@
 from typing import Any
 
 import pytest
-from django.contrib.auth.models import User
 from rest_framework.test import APIClient
+
+from app.models import User
 
 
 @pytest.fixture
 def user(db: Any) -> User:
-    return User.objects.create_user(username='testuser', password='password123')
+    return User.objects.create_user(username='testuser', password='password123', role='investor')
 
 
 @pytest.fixture
