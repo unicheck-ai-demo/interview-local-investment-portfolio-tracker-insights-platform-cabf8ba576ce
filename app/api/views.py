@@ -72,6 +72,11 @@ class PortfolioViewSet(viewsets.ModelViewSet):
         serializer = self.get_serializer(obj)
         return Response(serializer.data)
 
+    @action(detail=True, methods=['get'], url_path='holdings')
+    def holdings(self, request, pk=None):
+        data = PortfolioService.get_holdings(pk)
+        return Response(data)
+
 
 class AssetViewSet(viewsets.ModelViewSet):
     queryset = Asset.objects.select_related('institution').all()

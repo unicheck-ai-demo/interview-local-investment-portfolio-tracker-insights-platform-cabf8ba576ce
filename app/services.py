@@ -73,6 +73,11 @@ class PortfolioService:
         return (avg_price, total_amount)
 
     @staticmethod
+    def get_holdings(portfolio_id):
+        # TODO: implement holdings breakdown per asset
+        return []
+
+    @staticmethod
     def get_summary_with_cache(portfolio_id):
         cache_key = f'portfolio_summary_{portfolio_id}'
         data = cache.get(cache_key)
