@@ -8,6 +8,8 @@ from .views import (
     PortfolioViewSet,
     TransactionViewSet,
     UserViewSet,
+    login,
+    register,
 )
 
 router = DefaultRouter()
@@ -20,6 +22,8 @@ router.register(r'transactions', TransactionViewSet, basename='transaction')
 urlpatterns = [
     path('', include(router.urls)),
     path('health/', HealthCheckView.as_view(), name='health-check'),
+    path('register/', register, name='register'),
+    path('login/', login, name='login'),
 ]
 
 app_name = 'api'

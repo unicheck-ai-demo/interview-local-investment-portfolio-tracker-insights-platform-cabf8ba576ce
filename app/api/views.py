@@ -1,12 +1,13 @@
 from django.db import DatabaseError, connection
 from rest_framework import status, viewsets
-from rest_framework.decorators import action
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.authtoken.models import Token
+from rest_framework.decorators import action, api_view, permission_classes
+from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from app.models import Asset, Institution, Portfolio, Transaction, User
-from app.services import InstitutionService, PortfolioService, TransactionService
+from app.services import InstitutionService, PortfolioService, TransactionService, UserService
 
 from .serializers import (
     AssetSerializer,
@@ -31,6 +32,7 @@ class HealthCheckView(APIView):
 class UserViewSet(viewsets.ModelViewSet):
     queryset = User.objects.order_by('id').all()
     serializer_class = UserSerializer
+    permission_classes = [AllowAny]
 
 
 class InstitutionViewSet(viewsets.ModelViewSet):
@@ -84,7 +86,6 @@ class TransactionViewSet(viewsets.ModelViewSet):
 
     @action(detail=False, methods=['post'], url_path='multi-step')
     def multi_step(self, request):
-        # Simulated multi-step transaction handling
         data = request.data
         portfolio_id = data['portfolio']
         asset_id = data['asset']
@@ -95,3 +96,31 @@ class TransactionViewSet(viewsets.ModelViewSet):
         )
         serializer = self.get_serializer(tx)
         return Response(serializer.data, status=status.HTTP_201_CREATED)
+
+
+@api_view(['POST'])
+@permission_classes([AllowAny])
+def register(request):
+    username = request.data.get('username')
+    password = request.data.get('password')
+    role = request.data.get('role', User.ROLE_INVESTOR)
+    if not username or not password:
+        return Response({'error': 'Username and password required'}, status=400)
+    user = UserService.create_user(username, password, role)
+    token, _ = Token.objects.get_or_create(user=user)
+    return Response({'token': token.key, 'user': UserSerializer(user).data}, status=201)
+
+
+@api_view(['POST'])
+@permission_classes([AllowAny])
+def login(request):
+    username = request.data.get('username')
+    password = request.data.get('password')
+    try:
+        user = User.objects.get(username=username)
+        if not user.check_password(password):
+            return Response({'error': 'Invalid credentials'}, status=400)
+    except User.DoesNotExist:
+        return Response({'error': 'Invalid credentials'}, status=400)
+    token, _ = Token.objects.get_or_create(user=user)
+    return Response({'token': token.key, 'user': UserSerializer(user).data}, status=200)

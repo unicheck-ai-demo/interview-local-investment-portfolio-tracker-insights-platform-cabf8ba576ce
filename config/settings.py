@@ -27,6 +27,7 @@ INSTALLED_APPS = [
     'django.contrib.gis',
     # Third-party apps
     'rest_framework',
+    'rest_framework.authtoken',
     'django_redis',
     # Application
     'app.apps.AppConfig',
