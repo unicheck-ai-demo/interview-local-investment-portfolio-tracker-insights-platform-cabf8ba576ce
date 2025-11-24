@@ -13,6 +13,7 @@ UserModel = get_user_model()
 class UserService:
     @staticmethod
     def create_user(username, password, role=User.ROLE_INVESTOR):
+        print('Creating user:', username)
         return UserModel.objects.create_user(username=username, password=password, role=role)
 
     @staticmethod
@@ -66,6 +67,7 @@ class PortfolioService:
     @staticmethod
     def portfolio_performance(portfolio_id):
         qs = Transaction.objects.filter(portfolio_id=portfolio_id)
+        # Anti-pattern: separate aggregate calls causing multiple queries
         avg_price = qs.aggregate(Avg('price'))['price__avg']
         total_amount = qs.aggregate(Sum('amount'))['amount__sum']
         return (avg_price, total_amount)
