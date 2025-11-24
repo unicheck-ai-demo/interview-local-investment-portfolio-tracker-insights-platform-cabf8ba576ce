@@ -26,7 +26,7 @@ class Institution(models.Model):
     ]
     name = models.CharField(max_length=128)
     type = models.CharField(max_length=16, choices=TYPE_CHOICES)
-    location = geomodels.PointField(geography=True)
+    location = geomodels.PointField(geography=True, srid=4326)
 
     class Meta:
         indexes = [
